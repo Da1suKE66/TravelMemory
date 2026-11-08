@@ -1,10 +1,12 @@
 import { SCHEMA_VERSION, REGION_LABELS, escapeHTML as e, uid, regionForCountry, parseDate, normaliseExpense, duplicateStatus, sumsByCurrency, formatMoney, suggestGroups, selectMemories, tripInRegion, validateArchive } from './core.js';
 import { demoArchive as seed, SOURCES } from './demo.js';
+import { LocalArchiveFolder } from './local-folder.js';
 
 const app = document.getElementById('app'), modalRoot = document.getElementById('modal-root');
 let archive = { schemaVersion: SCHEMA_VERSION, trips: [], records: [] }, demo = structuredClone(seed);
 const state = { mode: localStorage.getItem('shitu-mode') || 'demo', region: 'world', otherCountry: '', source: 'photo', pending: [], billRows: null, billHeaders: [], mapping: {}, defaultCurrency: 'CNY', files: [], importMessage: '', importError: '', busy: false, tab: 'timeline' };
 let db, geo = {}, countryList = [], modalCleanup, toastTimer, lastFocus, mapZoom, mapSvg;
+const localFolder = new LocalArchiveFolder();
 const countryNames = new Intl.DisplayNames(['zh-CN'], { type: 'region' });
 const data = () => state.mode === 'demo' ? demo : archive;
 const activeRecords = () => data().records.filter(r => !r.deletedAt);
@@ -31,11 +33,73 @@ async function openDB() {
   });
   const saved = await new Promise((resolve, reject) => { const r = db.transaction('archive').objectStore('archive').get('main'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
   if (saved) archive = validateArchive(saved);
+  const binding = await new Promise((resolve,reject)=>{const r=db.transaction('archive').objectStore('archive').get('local-folder');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  localFolder.restore(binding);
+  if (localFolder.enabled) {
+    try {
+      const fileArchive = await localFolder.read();
+      if (fileArchive) {
+        validateArchive(fileArchive);
+        if ((fileArchive.updatedAt || '') >= (archive.updatedAt || '')) { archive=fileArchive;localFolder.status='saved'; }
+        else { localFolder.status='pending';localFolder.error='本机有较新的资料，请点击「立即写入」更新本地文件。'; }
+      }
+    } catch { localFolder.status='error';localFolder.error='本地档案暂时无法读取，已保留浏览器中的资料。请检查文件夹或恢复备份。'; }
+  }
+}
+async function rememberLocalFolder() {
+  if (!db) return false;
+  try { await new Promise((resolve,reject)=>{const tx=db.transaction('archive','readwrite');tx.objectStore('archive').put(localFolder.config,'local-folder');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});return true; }
+  catch { return false; }
 }
 async function persist() {
   if (state.mode === 'demo') return;
-  if (!db) throw new Error('浏览器存储不可用，请先导出备份，并检查隐私浏览设置。');
-  await new Promise((resolve, reject) => { const tx = db.transaction('archive','readwrite'); tx.objectStore('archive').put(archive,'main'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('存储空间不足')); });
+  archive.updatedAt = new Date().toISOString();
+  let browserSaved=false,browserError;
+  try {
+    if (!db) throw new Error('浏览器存储不可用，请先选择本地保存文件夹或下载备份。');
+    await new Promise((resolve,reject)=>{const tx=db.transaction('archive','readwrite');tx.objectStore('archive').put(archive,'main');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error || new Error('存储空间不足'));});browserSaved=true;
+  } catch (error) { browserError=error; }
+  const fileSaved=localFolder.enabled ? await localFolder.write(archive) : false;
+  if (localFolder.enabled) await rememberLocalFolder();
+  if (!browserSaved && !fileSaved) throw browserError || new Error(localFolder.error || '档案保存失败，请下载备份。');
+  state.cacheWarning=!browserSaved ? '本地文件已更新；浏览器缓存未能写入，下次可从本地档案恢复。' : '';
+  updateLocalSaveNotice();
+}
+
+function localSaveNotice() {
+  const message=(localFolder.enabled && localFolder.error) || state.cacheWarning || '';
+  return message ? `<div class="local-save-notice" role="status">${icon('hard-drive')}<span>${e(message)}</span><a href="#settings">数据与本地保存</a></div>` : '';
+}
+function updateLocalSaveNotice() { const target=document.getElementById('local-save-notice');if(target){target.innerHTML=localSaveNotice();uiIcons();} }
+function localFolderPanel() {
+  const config=localFolder.config;
+  const detail=config ? `${e(config.directory.name)} / ${e(config.fileName)}` : '尚未选择保存文件夹';
+  const status=localFolder.status==='saved' ? '本地文件已保存' : localFolder.status==='saving' ? '正在写入本地文件…' : localFolder.status==='needs-permission' ? '需要重新授权文件夹' : localFolder.enabled ? '等待写入本地文件' : '可以下载档案，或选择文件夹自动保存';
+  return `<section class="settings-panel"><h2>直接保存到本地</h2><p>选择文件夹后，导入与编辑会自动更新其中的 JSON 档案，包含旅行、记录和照片预览。原始照片、账单文件保留在原位置。</p><div class="local-folder-status" role="status"><strong>${status}</strong><span>${detail}</span>${config?.savedAt?`<small>最近写入：${e(new Date(config.savedAt).toLocaleString('zh-CN'))}</small>`:''}</div><div class="inline-actions">${localFolder.supported?`<button class="btn primary" data-action="folder-choose">${icon('folder-open')}${localFolder.enabled?'更换保存文件夹':'选择本地保存文件夹'}</button>`:`<button class="btn primary" data-action="backup">${icon('download')}下载到本地</button>`}${localFolder.enabled?`<button class="btn" data-action="folder-save">${icon('save')}${localFolder.status==='needs-permission'?'重新授权并保存':'立即写入'}</button><button class="btn ghost" data-action="folder-stop">停止自动写入</button>`:''}</div><p class="page-note">${localFolder.supported?'首次需要由你选择文件夹并授权；更换设备时可导入这个 JSON 文件。':'当前浏览器未开放文件夹选择功能，可使用「下载到本地」，或在支持此功能的桌面 Chrome / Edge 中选择保存文件夹。'}</p>${localFolder.error?`<p class="form-error">${e(localFolder.error)}</p>`:''}</section>`;
+}
+async function chooseLocalFolder() {
+  try {
+    await localFolder.choose();
+    archive.updatedAt ||= new Date().toISOString();
+    const saved=await localFolder.write(archive,{requestPermission:true});
+    const remembered=await rememberLocalFolder();
+    toast(saved?(remembered?'本地保存文件夹已连接，后续修改会自动写入':'本地文件已保存；下次打开时需重新选择文件夹'):localFolder.error);
+  } catch (error) { if(error.name!=='AbortError')toast(error.message || '无法选择文件夹，可先下载档案。'); }
+  render();
+}
+async function saveLocalFolderNow() {
+  try {
+    const config=localFolder.config;if(!config)return;
+    let permission=await config.directory.queryPermission?.({mode:'readwrite'}) || 'granted';
+    if(permission!=='granted')permission=await config.directory.requestPermission({mode:'readwrite'});
+    if(permission!=='granted'){localFolder.status='needs-permission';localFolder.error='需要你授权这个文件夹后才能更新档案。';render();return;}
+    try {
+      const disk=await localFolder.read();
+      if(disk){validateArchive(disk);if((disk.updatedAt || '')>(archive.updatedAt || ''))archive=disk;}
+    } catch(error) {if(error.name!=='NotFoundError')throw error;}
+    const saved=await localFolder.write(archive);
+    await rememberLocalFolder();render();toast(saved?'档案已写入本地文件':localFolder.error);
+  } catch {localFolder.status='error';localFolder.error='本地档案未能完成核对，暂未覆盖文件。你可以恢复备份，或选择新的保存文件夹。';render();}
 }
 
 function route() {
@@ -49,7 +113,7 @@ const navName = () => ({map:'足迹地图',trips:'我的旅行',memories:'旅行
 
 function render() {
   const page = ({ map:renderMapPage, trips:renderTripsPage, memories:renderMemoriesPage, import:renderImportPage, settings:renderSettingsPage, trip:renderTripPage }[state.view] || renderMapPage)();
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#map" aria-label="拾途首页"><span class="brand-mark">${icon('scan-line')}</span><span class="brand-copy"><span class="brand-cn">拾途</span><span class="brand-en">SHITU JOURNAL</span></span></a><div class="sidebar-caption">YOUR LITTLE WORLD</div><nav class="nav" aria-label="主要导航">${[['map','globe-2','足迹地图'],['trips','luggage','我的旅行'],['memories','clapperboard','旅行回忆'],['import','folder-down','导入中心']].map(([id,i,label])=>`<a class="nav-link ${state.view === id || id === 'trips' && state.view === 'trip' ? 'active' : ''}" href="#${id}" aria-label="${label}" ${state.view === id ? 'aria-current="page"' : ''}>${icon(i)}<span class="nav-text">${label}</span></a>`).join('')}</nav><div class="sidebar-bottom"><div class="local-note">${icon('shield-check')}<span>属于你的故事<br>资料在本机慢慢整理</span></div><a class="nav-link ${state.view === 'settings' ? 'active' : ''}" href="#settings">${icon('settings-2')}<span class="nav-text">数据与备份</span></a><div class="side-footer"><span>KEEP THE JOURNEY</span><span>v0.1</span></div></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb"><span>我的拾途</span><span>/</span><strong>${navName()}</strong></div><div class="top-actions"><select class="archive-select" id="archive-mode" aria-label="选择档案"><option value="demo" ${state.mode === 'demo' ? 'selected' : ''}>示例档案</option><option value="mine" ${state.mode === 'mine' ? 'selected' : ''}>我的本机档案</option></select><button class="btn primary" data-action="import">${icon('plus')}导入资料</button></div></header><main id="main" class="page">${page}</main></div></div>`;
+  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#map" aria-label="拾途首页"><span class="brand-mark">${icon('scan-line')}</span><span class="brand-copy"><span class="brand-cn">拾途</span><span class="brand-en">SHITU JOURNAL</span></span></a><div class="sidebar-caption">YOUR LITTLE WORLD</div><nav class="nav" aria-label="主要导航">${[['map','globe-2','足迹地图'],['trips','luggage','我的旅行'],['memories','clapperboard','旅行回忆'],['import','folder-down','导入中心']].map(([id,i,label])=>`<a class="nav-link ${state.view === id || id === 'trips' && state.view === 'trip' ? 'active' : ''}" href="#${id}" aria-label="${label}" ${state.view === id ? 'aria-current="page"' : ''}>${icon(i)}<span class="nav-text">${label}</span></a>`).join('')}<a class="nav-link mobile-local-save ${state.view==='settings'?'active':''}" href="#settings" aria-label="本地保存">${icon('hard-drive')}</a></nav><div class="sidebar-bottom"><div class="local-note">${icon('shield-check')}<span>属于你的故事<br>资料在本机慢慢整理</span></div><a class="nav-link ${state.view === 'settings' ? 'active' : ''}" href="#settings">${icon('settings-2')}<span class="nav-text">数据与备份</span></a><div class="side-footer"><span>KEEP THE JOURNEY</span><span>v0.1</span></div></div></aside><div class="main-shell"><header class="topbar"><div class="breadcrumb"><span>我的拾途</span><span>/</span><strong>${navName()}</strong></div><div class="top-actions"><select class="archive-select" id="archive-mode" aria-label="选择档案"><option value="demo" ${state.mode === 'demo' ? 'selected' : ''}>示例档案</option><option value="mine" ${state.mode === 'mine' ? 'selected' : ''}>我的本机档案</option></select><button class="btn primary" data-action="import">${icon('plus')}导入资料</button></div></header><main id="main" class="page"><div id="local-save-notice">${localSaveNotice()}</div>${page}</main></div></div>`;
   uiIcons();
   if (state.view === 'map') drawMap();
   if (state.view === 'import') bindImport();
@@ -220,7 +284,7 @@ function renderDocumentImport() {
 
 function renderSettingsPage() {
   const trash=data().records.filter(r=>r.deletedAt);
-  return heading('A HOME FOR YOUR LITTLE WORLD','让回忆，握在自己手里。','当前版本把档案保存在这个浏览器。更换设备前，请先导出备份。') + `<div class="backup-layout"><section class="settings-panel"><h2>我的档案与备份</h2><p>备份包含旅行、记录与照片预览，不含原始照片文件。重新导入时合并已有内容，不覆盖现有记录。</p><div class="inline-actions"><button class="btn primary" data-action="backup">${icon('download')}导出我的档案</button><button class="btn" data-action="restore">${icon('folder-up')}恢复备份</button><input type="file" id="restore-input" accept=".json" hidden></div><p class="page-note">我的本机档案：${archive.trips.filter(t=>!t.deletedAt).length} 次旅行 · ${archive.records.filter(r=>!r.deletedAt).length} 条记录。示例档案单独展示。</p></section><section class="settings-panel"><h2>资料怎样被使用</h2><ul class="privacy-list"><li>${icon('shield-check')}照片、账单与 OCR 识别在浏览器中处理，当前版本没有上传接口。</li><li>${icon('hard-drive')}浏览器清理、隐私模式或空间不足可能影响本机保存；请保留备份和原始文件。</li><li>${icon('eye-off')}不请求 iCloud、微信、支付宝或银行的密码；地理编码不发送照片坐标。</li><li>${icon('clapperboard')}导出回忆时默认去掉精确地点、消费和票据。</li></ul></section><section class="settings-panel"><h2>地点与时间的依据</h2><p>照片 GPS 只说明照片携带的位置；票据是计划线索，账单是消费线索。商家地址和本人位置不等同。当前只把照片 GPS 或手动核对坐标画到地图。</p><p>没有时区的时间保留为原始当地时间，不擅自跨时区换算；入账日期单独标记。地图范围只是视角，同一次旅行可以包含多个国家。</p></section><section class="settings-panel"><h2>网页现在能做什么</h2><p>地图切换、照片元数据读取、CSV / Excel 账单预览、PDF 文字提取、可选图片 OCR、确认归档、编辑与回忆相册导出。</p><p>iCloud 相册直接读取、银行自动同步、图像语义选片、配乐视频渲染与跨设备云同步属于后续版本。iPhone 版可沿用当前档案模型，新增系统相册授权。</p></section></div><div class="section-head"><h2 class="section-title">最近移除<small>可以恢复</small></h2></div>${trash.length ? `<div class="trash-list">${trash.map(r=>`<div class="trash-item"><span>${e(r.title)}<small class="subtle"> · ${displayDate(r.date)}</small></span><button class="btn small" data-action="undelete" data-id="${e(r.id)}">恢复记录</button></div>`).join('')}</div>` : '<p class="subtle">这里还没有移除的记录。</p>'}<div class="section-head"><h2 class="section-title">来源与说明</h2></div><p class="page-note">世界地图：<a href="https://github.com/topojson/world-atlas" target="_blank" rel="noreferrer">Natural Earth / world-atlas</a>；美国州界：<a href="https://github.com/topojson/us-atlas" target="_blank" rel="noreferrer">U.S. Census / us-atlas</a>；日本都道府县：<a href="https://github.com/dataofjapan/land" target="_blank" rel="noreferrer">dataofjapan</a>；大陆省界：<a href="https://datav.aliyun.com/portal/school/atlas/area_selector" target="_blank" rel="noreferrer">DataV</a>。边界为旅行展示参考。</p><p class="page-note">示例旅行为虚构资料；配图来自 Unsplash：京都、伏见稻荷、<a href="https://unsplash.com/photos/yiEXZCGy63M" target="_blank" rel="noreferrer">Andrea De Santis（岚山）</a>、<a href="https://unsplash.com/photos/pBg2i0aUOec" target="_blank" rel="noreferrer">Zhimai Zhang（桂林）</a>及优胜美地、曼谷。示例日期、账单与照片无真实关联。</p>`;
+  return heading('A HOME FOR YOUR LITTLE WORLD','让回忆，握在自己手里。','无需登录，资料保存在你的设备上。选择文件夹后，可直接写入本地档案。') + `<div class="backup-layout">${localFolderPanel()}<section class="settings-panel"><h2>我的档案与备份</h2><p>备份包含旅行、记录与照片预览，不含原始照片文件。重新导入时合并已有内容，不覆盖现有记录。</p><div class="inline-actions"><button class="btn primary" data-action="backup">${icon('download')}导出我的档案</button><button class="btn" data-action="restore">${icon('folder-up')}恢复备份</button><input type="file" id="restore-input" accept=".json" hidden></div><p class="page-note">我的本机档案：${archive.trips.filter(t=>!t.deletedAt).length} 次旅行 · ${archive.records.filter(r=>!r.deletedAt).length} 条记录。示例档案单独展示。</p></section><section class="settings-panel"><h2>资料怎样被使用</h2><ul class="privacy-list"><li>${icon('shield-check')}照片、账单与 OCR 识别在浏览器中处理，当前版本没有上传接口。</li><li>${icon('hard-drive')}浏览器清理、隐私模式或空间不足可能影响本机保存；请保留备份和原始文件。</li><li>${icon('eye-off')}不请求 iCloud、微信、支付宝或银行的密码；地理编码不发送照片坐标。</li><li>${icon('clapperboard')}导出回忆时默认去掉精确地点、消费和票据。</li></ul></section><section class="settings-panel"><h2>地点与时间的依据</h2><p>照片 GPS 只说明照片携带的位置；票据是计划线索，账单是消费线索。商家地址和本人位置不等同。当前只把照片 GPS 或手动核对坐标画到地图。</p><p>没有时区的时间保留为原始当地时间，不擅自跨时区换算；入账日期单独标记。地图范围只是视角，同一次旅行可以包含多个国家。</p></section><section class="settings-panel"><h2>网页现在能做什么</h2><p>地图切换、照片元数据读取、CSV / Excel 账单预览、PDF 文字提取、可选图片 OCR、确认归档、编辑与回忆相册导出。</p><p>iCloud 相册直接读取、银行自动同步、图像语义选片、配乐视频渲染与跨设备云同步属于后续版本。iPhone 版可沿用当前档案模型，新增系统相册授权。</p></section></div><div class="section-head"><h2 class="section-title">最近移除<small>可以恢复</small></h2></div>${trash.length ? `<div class="trash-list">${trash.map(r=>`<div class="trash-item"><span>${e(r.title)}<small class="subtle"> · ${displayDate(r.date)}</small></span><button class="btn small" data-action="undelete" data-id="${e(r.id)}">恢复记录</button></div>`).join('')}</div>` : '<p class="subtle">这里还没有移除的记录。</p>'}<div class="section-head"><h2 class="section-title">来源与说明</h2></div><p class="page-note">世界地图：<a href="https://github.com/topojson/world-atlas" target="_blank" rel="noreferrer">Natural Earth / world-atlas</a>；美国州界：<a href="https://github.com/topojson/us-atlas" target="_blank" rel="noreferrer">U.S. Census / us-atlas</a>；日本都道府县：<a href="https://github.com/dataofjapan/land" target="_blank" rel="noreferrer">dataofjapan</a>；大陆省界：<a href="https://datav.aliyun.com/portal/school/atlas/area_selector" target="_blank" rel="noreferrer">DataV</a>。边界为旅行展示参考。</p><p class="page-note">示例旅行为虚构资料；配图来自 Unsplash：京都、伏见稻荷、<a href="https://unsplash.com/photos/yiEXZCGy63M" target="_blank" rel="noreferrer">Andrea De Santis（岚山）</a>、<a href="https://unsplash.com/photos/pBg2i0aUOec" target="_blank" rel="noreferrer">Zhimai Zhang（桂林）</a>及优胜美地、曼谷。示例日期、账单与照片无真实关联。</p>`;
 }
 
 function resetImport() {state.pending=[];state.billRows=null;state.billHeaders=[];state.mapping={};state.files=[];state.doc=null;state.importStats={};state.importError='';state.importMessage='';}
@@ -457,6 +521,9 @@ app.addEventListener('click',async event=>{
     case 'ocr':runOCR();break;
     case 'demo-flow':state.mode='demo';localStorage.setItem('shitu-mode','demo');go('trip/japan/timeline');toast('已打开示例：照片、车票和账单归入同一次旅行');break;
     case 'sample-csv':download(new Blob(['\ufeff日期,商家,金额,币种,收/支,交易单号,地点,分类\r\n2026-05-03 11:20:00,京都咖啡店,850,JPY,支出,demo-001,京都,餐饮\r\n2026-05-05 10:10:00,京都站到大阪站,580,JPY,支出,demo-002,京都,交通\r\n2026-05-06 12:00:00,商品退货,-300,JPY,退款,demo-003,大阪,购物\r\n'],{type:'text/csv;charset=utf-8'}),'拾途-示例账单.csv');break;
+    case 'folder-choose':el.disabled=true;await chooseLocalFolder();break;
+    case 'folder-save':el.disabled=true;await saveLocalFolderNow();break;
+    case 'folder-stop':localFolder.stop();await rememberLocalFolder();render();toast('已停止自动写入，已有的本地文件仍然保留');break;
     case 'backup':backupArchive();break;
     case 'restore':document.getElementById('restore-input')?.click();break;
   }
