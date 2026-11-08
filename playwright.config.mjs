@@ -6,7 +6,7 @@ const iphone = devices['iPhone 15 Pro Max'];
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 'responsive.spec.mjs',
+  testMatch: ['responsive.spec.mjs', 'globe.spec.mjs'],
   outputDir: '.sites/qa/test-results',
   reporter: [['list'], ['html', { outputFolder: '.sites/qa/report', open: 'never' }]],
   fullyParallel: true,

@@ -83,6 +83,7 @@ test('five maps and their controls work at every size', async ({ page }, info) =
   }
   // Dense world-map markers must select the point that was actually tapped.
   await page.locator('[data-action="region"][data-value="world"]').click();
+  await page.locator('[data-action="world-view"][data-value="flat"]').click();
   await page.locator('#travel-map a[href="#trip/japan"] .map-dot').click();
   await expect(page).toHaveURL(/#trip\/japan$/);
 });

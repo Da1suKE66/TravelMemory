@@ -1,5 +1,5 @@
 export const SCHEMA_VERSION = 1;
-export const REGION_LABELS = { world: '全球', mainland: '大陆', japan: '日本', usa: '美国', other: '其他' };
+export const REGION_LABELS = { world: '全球', mainland: '中国大陆', japan: '日本', usa: '美国', other: '其他' };
 export const CURRENCY_DIGITS = { JPY: 0, KRW: 0, VND: 0, KWD: 3, BHD: 3, OMR: 3 };
 export const digitsFor = currency => CURRENCY_DIGITS[currency] ?? 2;
 export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

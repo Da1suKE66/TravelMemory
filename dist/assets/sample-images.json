@@ -37,6 +37,24 @@
       "source_url": "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=1100&q=80",
       "sha256": "900ebcee2e4e32068374520077d491036918b64ea8cea44ea8cd45566bf10230",
       "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/taipei.jpg",
+      "source_url": "https://images.unsplash.com/photo-1788686332361-a950c53f295a?auto=format&fit=crop&fm=jpg&w=1100&q=82",
+      "photo_page": "https://unsplash.com/photos/TGaVL5rwwd4",
+      "photographer": "Arthur Tseng",
+      "license_url": "https://unsplash.com/license",
+      "sha256": "93832aa191e8f1ef81fa1e273615b403fc0cda1b2ac76d0f9d3c80fb4ccee22d",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/jiufen.jpg",
+      "source_url": "https://images.unsplash.com/photo-1723421770569-1e505f180521?auto=format&fit=crop&fm=jpg&w=1100&q=82",
+      "photo_page": "https://unsplash.com/photos/CRQ6z_R462c",
+      "photographer": "Rafi Raihan",
+      "license_url": "https://unsplash.com/license",
+      "sha256": "d97eb3cfc1596c73cfe260f41a41ca1cc521ae344aa2f921abcd2208f3688721",
+      "verified_against_public_source": true
     }
   ],
   "test_fixture": {

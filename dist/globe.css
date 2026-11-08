@@ -1,0 +1,55 @@
+.map-heading-tools { display: grid; gap: 9px; justify-items: end; flex-shrink: 0; }
+.map-view-switch { display: inline-flex; padding: 3px; border: 1px solid #dce4d8; border-radius: 10px; background: #e8eee5; }
+.map-view-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 11px; min-height: 38px; border: 0; border-radius: 7px; background: transparent; color: #73836d; font-size: 12px; }
+.map-view-switch button[aria-pressed="true"] { background: #fffdf7; color: #3e6550; box-shadow: 0 1px 5px #3647310d; }
+.map-view-switch svg { width: 15px; height: 15px; }
+.map-container.globe-view { height: 370px; background: radial-gradient(ellipse at center, #e4eddf66, transparent 68%); }
+.map-container .globe-svg { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.map-container .globe-svg.is-dragging { cursor: grabbing; }
+.globe-svg:focus-visible { outline: 2px solid #73947b; outline-offset: -5px; border-radius: 12px; }
+.map-container .globe-atmosphere { fill: none; stroke: #bed0bb; stroke-width: 1; opacity: .65; pointer-events: none; }
+.map-container .globe-svg .map-land { fill: #d0decf; stroke: #edf3e9; stroke-width: .65; }
+.map-container .globe-svg .map-land.visited { fill: #7eaa91; }
+.globe-graticule { fill: none; stroke: #92b09d; stroke-width: .6; opacity: .38; pointer-events: none; }
+.globe-shade { pointer-events: none; }
+.globe-svg .map-dot { stroke-width: 2.5; }
+.globe-svg a:hover .map-dot { r: 7; }
+.globe-svg a:focus-visible .map-dot { stroke: #2f6249; stroke-width: 5; }
+.map-container .globe-label { font-size: 11px; stroke: #e7efe3; stroke-width: 3px; pointer-events: none; }
+.globe-leader { fill: none; stroke: #648773; stroke-width: .7; opacity: .65; pointer-events: none; }
+.globe-guide { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 24px 12px; font-size: 11px; color: #74856c; }
+.globe-guide > span { display: inline-flex; align-items: center; gap: 6px; }
+.globe-guide svg { width: 14px; height: 14px; }
+.globe-guide .touch-guide { display: none; }
+.globe-destinations { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 24px 16px; }
+.globe-destinations button { border: 1px solid #d8e2d3; border-radius: 20px; background: #f9fbf5; color: #63785c; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 11px; }
+.globe-destinations button::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.globe-empty { display: grid; place-content: center; padding: 30px; text-align: center; gap: 14px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); }
+.globe-empty h2 { font: 22px/1.6 "Noto Serif SC", "Songti SC", serif; }
+.globe-empty p { font-size: 13px; color: #78856e; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (min-width: 1650px) { .map-container.globe-view { height: 430px; } }
+@media (pointer: coarse) {
+  .map-view-switch button, .globe-destinations button { min-height: 44px; }
+  .globe-guide .mouse-guide { display: none; }
+  .globe-guide .touch-guide { display: inline-flex; }
+}
+@media (max-width: 700px), (pointer: coarse) and (max-height: 520px) and (max-width: 1024px) {
+  .map-heading { flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .map-heading-tools { margin-left: auto; gap: 6px; }
+  .map-heading-tools .map-range { display: none; }
+  .map-view-switch button { min-height: 44px; font-size: 13px; padding: 8px 10px; }
+  .map-view-switch svg { width: 16px; height: 16px; }
+  .map-container.globe-view { height: 330px; }
+  .globe-guide { padding: 0 18px 12px; font-size: 11px; }
+  .globe-destinations { padding: 0 18px 14px; gap: 7px; }
+  .globe-destinations button { min-height: 44px; font-size: 12px; padding: 7px 11px; }
+  .mode[data-value="mainland"] { flex: 1.35; }
+}
+@media (max-width: 359px) {
+  .map-heading-tools { width: 100%; justify-items: start; margin-left: 0; }
+  .map-container.globe-view { height: 280px; }
+}
+@media (pointer: coarse) and (max-height: 520px) and (min-width: 701px) and (max-width: 1024px) {
+  .map-container.globe-view { height: 290px; }
+}
