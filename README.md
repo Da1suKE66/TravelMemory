@@ -24,6 +24,20 @@ npm test
 
 本机地址为 http://127.0.0.1:4178 。站点入口在 `dist/index.html`，无需构建。
 
+## 电脑与手机布局
+
+电脑端保留侧栏与多列地图、旅行卡片；手机端提供带文字的五入口底部导航、至少 44px 的主要触控按钮、16px 表单输入、横竖屏布局和安全区间距。表格在自己的容器中横向滚动，页面保持贴合屏幕。编辑弹窗随可见视口调整，回忆播放器也支持较矮的横屏。
+
+响应式回归覆盖桌面 1366 / 1440 / 1920、平板、320px 小屏，以及 iPhone 15 Pro Max 的 Safari 内容视口 430×739、横屏 814×380 和完整屏幕 430×932 / 932×430（3 倍像素密度）。使用 WebKit / Chrome 自动化模拟，不等同于真机验证。测试只使用虚构资料；安全区和键盘视口变化另有模拟检查。
+
+```sh
+npm ci
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.sites/browsers" npx playwright install webkit chromium
+npm run test:layout
+```
+
+桌面测试默认使用已安装的 Google Chrome。若只安装 Playwright Chromium，可将配置中的 `channel: 'chrome'` 移除。截图、失败追踪和 HTML 报告保存在忽略的 `.sites/qa/` 中。
+
 ## 直接保存到本地
 
 在「数据与备份」点击「选择本地保存文件夹」，授予浏览器写入权限后，导入、编辑和移除记录会自动更新其中的 `shitu-archive-*.json` 文件。文件包含旅行、记录与照片预览，原始照片和账单仍保留在原位置。首次连接会创建独立文件名，不覆盖已有档案。
