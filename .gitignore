@@ -1,0 +1,22 @@
+node_modules/
+.DS_Store
+*.zip
+.sites/
+qa/
+
+# Local imports, personal archive exports, and credentials
+/imports/
+/backups/
+/user-data/
+shitu-backup-*.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Private hosting identity stays local; the example is public.
+/.openai/hosting.json
+
+# Recreate this synthetic EXIF fixture locally from the public sample.
+/tests/fixtures/gps-photo.jpg

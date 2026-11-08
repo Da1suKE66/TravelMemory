@@ -24,6 +24,8 @@ npm test
 
 本机地址为 http://127.0.0.1:4178 。站点入口在 `dist/index.html`，无需构建。
 
+若要手动验证照片 GPS 导入，可以运行 `python3 scripts/create-gps-fixture.py`，从已核实的公开示例图生成本机测试样本。日期与 GPS 均为人工测试值；生成的 JPEG 不提交到仓库。示例图片来源和校验值见 `dist/assets/sample-images.json`。
+
 ## 已实现
 
 - 全球、大陆、日本、美国、其他五种范围；真实公开边界数据与 D3 地图。其他范围可再选国家。

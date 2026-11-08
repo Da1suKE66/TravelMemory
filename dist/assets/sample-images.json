@@ -1,0 +1,49 @@
+{
+  "description": "Public demo photos bundled with the prototype. All demo dates and transactions are fictional. No personal user photos are included.",
+  "license_url": "https://unsplash.com/license",
+  "images": [
+    {
+      "path": "dist/assets/kyoto.jpg",
+      "source_url": "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1400&q=82",
+      "sha256": "a919940c1397fbdbf550bce3fad83629b2c2b9edcdd3c7b79203cc2ca5576ecd",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/torii.jpg",
+      "source_url": "https://images.unsplash.com/photo-1595894427194-998804656179?auto=format&fit=crop&w=1000&q=80",
+      "sha256": "94e8bbac642569163462f7e4350dc3d550ebdf9d762e559330f3ad5330d02700",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/bamboo.jpg",
+      "source_url": "https://images.unsplash.com/photo-1684877217817-03df38f83895?auto=format&fit=crop&w=1100&q=82",
+      "sha256": "ce2be0fc43c1aeb6969405a61af59e83790e3c0e572d906c9534c18fb4bdd490",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/guilin.jpg",
+      "source_url": "https://images.unsplash.com/photo-1557750223-53916b138a90?auto=format&fit=crop&w=1100&q=82",
+      "sha256": "01b1883b411fba325fa657f7f07afc3c1f1677b6f98e932108be8a3c3357ad07",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/yosemite.jpg",
+      "source_url": "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1100&q=80",
+      "sha256": "bee4d3ad9b3e204fd936616e67b727077b6d0cb3a9264755e4994ac4c51639db",
+      "verified_against_public_source": true
+    },
+    {
+      "path": "dist/assets/bangkok.jpg",
+      "source_url": "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=1100&q=80",
+      "sha256": "900ebcee2e4e32068374520077d491036918b64ea8cea44ea8cd45566bf10230",
+      "verified_against_public_source": true
+    }
+  ],
+  "test_fixture": {
+    "generated_file": "tests/fixtures/gps-photo.jpg",
+    "generated_by": "scripts/create-gps-fixture.py",
+    "derived_from": "dist/assets/kyoto.jpg",
+    "tracked_in_git": false,
+    "metadata": "Artificial test date and coordinates, generated locally. No personal photo or location history is used."
+  }
+}
